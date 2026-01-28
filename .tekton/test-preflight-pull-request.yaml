@@ -1,0 +1,57 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  annotations:
+    build.appstudio.openshift.io/repo: https://github.com/hugares/some-project-stg-rh01?rev={{revision}}
+    build.appstudio.redhat.com/commit_sha: '{{revision}}'
+    build.appstudio.redhat.com/pull_request_number: '{{pull_request_number}}'
+    build.appstudio.redhat.com/target_branch: '{{target_branch}}'
+    pipelinesascode.tekton.dev/cancel-in-progress: "false"
+    pipelinesascode.tekton.dev/max-keep-runs: "3"
+    pipelinesascode.tekton.dev/on-cel-expression: event == "pull_request" && target_branch
+      == "preflight"
+  creationTimestamp: null
+  labels:
+    appstudio.openshift.io/application: some-project-stg-rh01
+    appstudio.openshift.io/component: test-preflight
+    pipelines.appstudio.openshift.io/type: build
+  name: test-preflight-on-pull-request
+  namespace: rh-ee-hares-tenant
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+spec:
+  taskRunSpecs:
+    - pipelineTaskName: test-preflight
+      stepSpecs:
+        - name: app-check
+          computeResources:
+            requests:
+              cpu: '1'
+            limits:
+              cpu: '1'
+  taskRunTemplate:
+    serviceAccountName: build-pipeline-test-preflight
+  pipelineSpec:
+    description: |
+      Simple PipelineRun to test the preflight task
+    tasks:
+    - matrix:
+        params:
+          - name: platform
+            value:
+            - linux/x86_64
+            - linux/arm64
+      name: test-preflight
+      params:
+        - name: image-url
+          value: quay.io/rh-ee-caxu/mintmaker-renovate-image:latest
+      taskRef:
+        params:
+        - name: name
+          value: ecosystem-cert-preflight-checks
+        - name: bundle
+          value: quay.io/bcrochet/tekton-catalog/task-ecosystem-cert-preflight-checks:oom
+        - name: kind
+          value: task
+        resolver: bundles
+status: {}
